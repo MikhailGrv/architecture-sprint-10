@@ -1,0 +1,78 @@
+@startuml name MedMVP Context
+title Медикаменте автоматизация работы с клиентами MVP. 
+
+top to bottom direction
+
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+Person(uClient, "Клиент", "Пациент")
+
+
+
+System_Ext(lab, "Лабораторяи", "")
+
+
+
+System_Boundary(sys, "Медикаменте") {
+    Person(uDoc, "Доктор", "Сотрудник-медик")
+    Person(uReseption, "Администратор", "Сотрудник ресепшена")
+    Person(uBuh, "Бухгалтер", "Сотрудник")
+    Person(uWH, "Сотрудник склада", "Сотрудник")
+    Person(uCas, "Кассир", "Сотрудник")
+    Container_Boundary(dc1, "Датацентр 1"){
+        System(apiDMZ,"ApiGateway Ext","nginx")
+        System_Boundary(clientPortal,"Портал клиентов",""){
+            System_Boundary(k8scp, "k8s"){
+                System(msClientPortal, "Микросервисы",".net core/java")
+            }
+            System(mscpCache,"Кэш", "Redis")
+            System(mscpDB,"СУБД", "Postgres")
+        }
+        System_Boundary(resPortal,"Портал Ресепшен",""){
+            System(apiLan,"ApiGateway lan","nginx")
+            System_Boundary(k8srp, "k8s"){
+                System(msResPortal, "Микросервисы",".net core/java")
+            }
+            System(msrpCache,"Кэш", "Redis")
+            System(msrpDB,"СУБД", "Postgres")
+        }
+        System(ebus,"Шина сообщений","kafka")
+    }
+    System_Boundary(lserver,"Сервер приложений","MS Windows Server 2022"){
+        System(lbuh,"Бухгалтерия","1С Бухгалтерия предприятия")
+        System(lwh,"Склад","1С Торговля и склад")
+        System(mail,"Почта","Exchange Mail Server")
+        System(ad,"Auth","Active Directory")
+        System(fs,"Файловый сервер","File server")
+    }    
+    System(kkm,"ККМ","Контрольно-кассовая машина")
+}
+Rel(kkm, lbuh,"")
+Rel(uCas, kkm,"")
+Rel(uWH, lwh,"")
+Rel(uBuh, lbuh,"")
+Rel(uDoc, apiLan,"")
+Rel(uClient, uCas,"")
+
+Rel(lab, apiDMZ, "Сохранение результатов анализов")
+
+Rel(uClient, apiDMZ,"https(tls1.3) UC1 записаться на приём к специалисту")
+Rel(apiDMZ, msClientPortal,"https(tls1.3) UC1 Запись клиента")
+Rel(msClientPortal, mscpCache,"Использование кэша")
+Rel(msClientPortal, mscpDB,"Использование СУБД")
+Rel(msClientPortal, ebus,"Записи клиента, графики приема")
+Rel(msClientPortal, ebus,"Результаты анализов")
+
+Rel(apiLan, msResPortal, "")
+Rel(uReseption, apiLan,"Регистрация пациента")
+Rel(uReseption, apiLan,"Отслеживание записи клиента")
+Rel(uReseption, uClient,"Напоминание")
+Rel(uReseption, uDoc,"Напоминание")
+Rel(msResPortal, msrpCache,"Использование кэша")
+Rel(msResPortal, msrpDB,"Использование СУБД")
+Rel(msResPortal, ebus,"Записи клиента, графики приема")
+Rel(msResPortal, ebus,"Результаты анализов")
+
+
+@enduml
+
